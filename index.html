@@ -17,7 +17,11 @@ body{display:flex;height:100dvh;padding:env(safe-area-inset-top) env(safe-area-i
 #box{width:min(100cqw,100cqh);aspect-ratio:1;position:relative;background:#fff;border-radius:18px;box-shadow:0 0 0 6px #fff,0 0 0 9px #e0a526;overflow:hidden}
 #box canvas{position:absolute;inset:0;width:100%;height:100%}
 #o{pointer-events:none}
-#motifs{display:flex;gap:10px;justify-content:center}
+#motifs{display:flex;gap:10px;overflow-x:auto;touch-action:pan-x;padding:4px 4px 10px;scrollbar-width:none}
+#motifs::-webkit-scrollbar{display:none}
+#motifs>*{flex:none}
+#motifs>:first-child{margin-left:auto}
+#motifs>:last-child{margin-right:auto}
 button{border:0;font:inherit;cursor:pointer;touch-action:manipulation}
 .t,.m{width:64px;height:64px;border-radius:50%;background:#fff;font-size:32px;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 4px 0 rgba(0,0,0,.18)}
 .m{border-radius:18px}
@@ -30,7 +34,7 @@ button{border:0;font:inherit;cursor:pointer;touch-action:manipulation}
 @media (orientation:portrait){
  body{flex-direction:column}
  #main{order:1}
- #tools{order:2;grid-template-columns:repeat(7,64px);grid-auto-rows:64px}
+ #tools{order:2;grid-template-columns:repeat(8,64px);grid-auto-rows:64px}
 }
 @media print{
  @page{margin:12mm}
@@ -60,6 +64,7 @@ const cb=COLORS.map(c=>{const b=btn('t c','',()=>{color=c;erase=false;mark()});b
 const eb=btn('t','🧽',()=>{erase=true;mark()});
 const sb=btn('t','<i class="dot" style="width:14px;height:14px"></i>',()=>{size=14;mark()});
 const lb=btn('t','<i class="dot" style="width:36px;height:36px"></i>',()=>{size=40;mark()});
+const vb=btn('t','💾',doSave);
 const pb=btn('t','🖨️',doPrint);
 const xb=btn('t','🗑️',()=>{});xb.id='clear';
 function mark(){
@@ -71,7 +76,7 @@ size=40;mark();
 
 // Gedrückt halten zum Löschen
 let hold;
-xb.onpointerdown=()=>{xb.classList.add('hold');hold=setTimeout(()=>{pc.fillStyle='#fff';pc.fillRect(0,0,S,S);xb.classList.remove('hold')},1200)};
+xb.onpointerdown=()=>{xb.classList.add('hold');hold=setTimeout(()=>{pc.fillStyle='#fff';pc.fillRect(0,0,S,S);xb.classList.remove('hold');later()},1200)};
 ['pointerup','pointerleave','pointercancel'].forEach(e=>xb.addEventListener(e,()=>{clearTimeout(hold);xb.classList.remove('hold')}));
 
 // Zeichnen
@@ -85,7 +90,7 @@ function seg(a,b){
 const box=document.getElementById('box');
 box.addEventListener('pointerdown',e=>{e.preventDefault();box.setPointerCapture(e.pointerId);last=pos(e);seg(last,[last[0]+.01,last[1]])});
 box.addEventListener('pointermove',e=>{if(!last)return;const n=pos(e);seg(last,n);last=n});
-['pointerup','pointercancel'].forEach(t=>box.addEventListener(t,()=>{last=null}));
+['pointerup','pointercancel'].forEach(t=>box.addEventListener(t,()=>{last=null;later()}));
 document.addEventListener('gesturestart',e=>e.preventDefault());
 document.addEventListener('contextmenu',e=>e.preventDefault());
 
@@ -99,6 +104,13 @@ const MOTIFS=[
  {e:'🐟',f:c=>{el(c,45,50,30,20);pl(c,[[72,50],[94,30],[94,70]]);ci(c,32,44,3.5);pl(c,[[40,32],[52,16],[60,34]]);pl(c,[[40,68],[50,82],[58,66]])}},
  {e:'🌸',f:c=>{for(let i=0;i<6;i++){const a=i*Math.PI/3;ci(c,50+17*Math.cos(a),38+17*Math.sin(a),8.5)}ci(c,50,38,8);pl(c,[[48,58],[52,58],[52,92],[48,92]]);el(c,66,76,13,6);el(c,34,70,13,6)}},
  {e:'❤️',f:c=>{c.beginPath();c.moveTo(50,86);c.bezierCurveTo(8,55,14,12,50,34);c.bezierCurveTo(86,12,92,55,50,86);c.closePath();c.stroke()}},
+ {e:'🦋',f:c=>{ci(c,33,36,16);ci(c,67,36,16);ci(c,36,66,12);ci(c,64,66,12);ci(c,30,36,6);ci(c,70,36,6);el(c,50,50,4,22);c.beginPath();c.moveTo(48,29);c.lineTo(40,14);c.moveTo(52,29);c.lineTo(60,14);c.stroke();ci(c,40,13,2);ci(c,60,13,2)}},
+ {e:'🌳',f:c=>{el(c,50,38,30,26);pl(c,[[43,62],[57,62],[57,92],[43,92]]);ci(c,40,32,4);ci(c,58,44,4);ci(c,62,28,4)}},
+ {e:'🚗',f:c=>{pl(c,[[8,62],[8,50],[26,46],[36,28],[66,28],[78,46],[92,50],[92,62]]);pl(c,[[40,32],[49,32],[49,45],[32,45]]);pl(c,[[53,32],[64,32],[73,45],[53,45]]);ci(c,28,66,10);ci(c,72,66,10);ci(c,28,66,4);ci(c,72,66,4)}},
+ {e:'🐱',f:c=>{ci(c,50,56,26);pl(c,[[28,40],[30,16],[44,32]]);pl(c,[[72,40],[70,16],[56,32]]);ci(c,40,52,4);ci(c,60,52,4);pl(c,[[47,60],[53,60],[50,64]]);c.beginPath();[[26,62,8,58],[26,66,8,68],[74,62,92,58],[74,66,92,68]].forEach(l=>{c.moveTo(l[0],l[1]);c.lineTo(l[2],l[3])});c.stroke()}},
+ {e:'⭐',f:c=>{const q=[];for(let i=0;i<10;i++){const r=i%2?16:38,a=-Math.PI/2+i*Math.PI/5;q.push([50+r*Math.cos(a),52+r*Math.sin(a)])}pl(c,q)}},
+ {e:'🍄',f:c=>{c.beginPath();c.ellipse(50,50,36,30,0,Math.PI,0);c.closePath();c.stroke();pl(c,[[40,50],[60,50],[64,86],[36,86]]);ci(c,36,38,5);ci(c,52,30,6);ci(c,66,42,5)}},
+ {e:'🐢',f:c=>{c.beginPath();c.ellipse(50,56,32,24,0,Math.PI,0);c.closePath();c.stroke();ci(c,88,52,8);ci(c,90,50,1.5);pl(c,[[30,56],[40,56],[38,72],[28,72]]);pl(c,[[60,56],[70,56],[72,72],[62,72]]);pl(c,[[18,56],[8,60],[18,62]]);ci(c,50,44,9);ci(c,34,52,6);ci(c,66,52,6)}},
  {e:'📄',f:null}
 ];
 const ms=document.getElementById('motifs');
@@ -108,7 +120,7 @@ MOTIFS.forEach((m,i)=>{
   pc.fillStyle='#fff';pc.fillRect(0,0,S,S);
   oc.clearRect(0,0,S,S);
   if(m.f){oc.setTransform(10,0,0,10,0,0);oc.lineWidth=1;oc.strokeStyle='#222';oc.lineJoin=oc.lineCap='round';m.f(oc);oc.setTransform(1,0,0,1,0,0)}
-  [...ms.children].forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  [...ms.children].forEach(x=>x.classList.remove('on'));b.classList.add('on');later();
  };
  ms.appendChild(b);
 });
@@ -131,13 +143,33 @@ fi.onchange=()=>{
   }
   oc.setTransform(1,0,0,1,0,0);oc.clearRect(0,0,S,S);oc.putImageData(d,0,0);
   pc.fillStyle='#fff';pc.fillRect(0,0,S,S);
-  [...ms.children].forEach(b=>b.classList.remove('on'));
+  [...ms.children].forEach(b=>b.classList.remove('on'));later();
   URL.revokeObjectURL(u);
  };
  im.onerror=()=>URL.revokeObjectURL(u);
  im.src=u;fi.value='';
 };
-ms.children[1].click();
+// Automatisch speichern (im Browser des Geräts) und wiederherstellen
+let st;
+function later(){clearTimeout(st);st=setTimeout(save,600)}
+function save(){try{localStorage.setItem('malen-v1',JSON.stringify({p:p.toDataURL('image/jpeg',.85),o:o.toDataURL('image/png')}))}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
+let s=null;try{s=JSON.parse(localStorage.getItem('malen-v1'))}catch(e){}
+if(s&&s.p&&s.o){const a=new Image(),b=new Image();let n=0;
+ const go=()=>{if(++n===2){pc.drawImage(a,0,0);oc.drawImage(b,0,0)}};
+ a.onload=b.onload=go;a.src=s.p;b.src=s.o}
+else ms.children[1].click();
+
+// Als Bild sichern (Teilen-Menü → "Bild sichern" legt es in Fotos ab)
+function doSave(){
+ const t=document.createElement('canvas');t.width=t.height=S;const x=t.getContext('2d');
+ x.drawImage(p,0,0);x.drawImage(o,0,0);
+ t.toBlob(bl=>{
+  const f=new File([bl],'malbild.png',{type:'image/png'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f]}).catch(()=>{})}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='malbild.png';a.click()}
+ },'image/png');
+}
 
 // Drucken
 function doPrint(){
