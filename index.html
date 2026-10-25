@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Malen">
+<title>Malen</title>
+<style>
+:root{--bg:#fff3c9;--bar:#ffe08a;--ink:#2b2b2b}
+*{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;touch-action:none;background:var(--bg);font-family:"Chalkboard SE","Comic Sans MS","Marker Felt",system-ui,sans-serif}
+body{display:flex;height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#tools{display:grid;grid-template-columns:repeat(2,64px);grid-auto-rows:64px;gap:10px;padding:12px;background:var(--bar);align-content:center;justify-content:center}
+#main{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;padding:12px}
+#wrap{flex:1;min-height:0;container-type:size;display:flex;justify-content:center;align-items:center}
+#box{width:min(100cqw,100cqh);aspect-ratio:1;position:relative;background:#fff;border-radius:18px;box-shadow:0 0 0 6px #fff,0 0 0 9px #e0a526;overflow:hidden}
+#box canvas{position:absolute;inset:0;width:100%;height:100%}
+#o{pointer-events:none}
+#motifs{display:flex;gap:10px;justify-content:center}
+button{border:0;font:inherit;cursor:pointer;touch-action:manipulation}
+.t,.m{width:64px;height:64px;border-radius:50%;background:#fff;font-size:32px;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 4px 0 rgba(0,0,0,.18)}
+.m{border-radius:18px}
+.c{box-shadow:inset 0 0 0 3px rgba(0,0,0,.12),0 4px 0 rgba(0,0,0,.18)}
+.on{outline:6px solid var(--ink);outline-offset:2px}
+.dot{border-radius:50%;background:var(--ink);display:block}
+#clear{transition:transform 1.2s linear}
+#clear.hold{transform:scale(.7);background:#ffb3b3}
+#pimg{display:none}
+@media (orientation:portrait){
+ body{flex-direction:column}
+ #main{order:1}
+ #tools{order:2;grid-template-columns:repeat(7,64px);grid-auto-rows:64px}
+}
+@media print{
+ @page{margin:12mm}
+ body>*:not(#pimg){display:none!important}
+ html,body{overflow:visible;height:auto;background:#fff}
+ #pimg{display:block;width:100%;max-width:180mm;margin:0 auto}
+}
+</style>
+</head>
+<body>
+<div id="tools"></div>
+<div id="main">
+ <div id="wrap"><div id="box"><canvas id="p" width="1000" height="1000"></canvas><canvas id="o" width="1000" height="1000"></canvas></div></div>
+ <div id="motifs"></div>
+</div>
+<img id="pimg" alt="">
+<script>
+const S=1000,COLORS=['#e53935','#fb8c00','#fdd835','#43a047','#1e88e5','#8e24aa','#ec407a','#795548','#212121'];
+const p=document.getElementById('p'),o=document.getElementById('o'),pc=p.getContext('2d'),oc=o.getContext('2d');
+let color=COLORS[0],size=30,erase=false;
+pc.fillStyle='#fff';pc.fillRect(0,0,S,S);
+
+// Werkzeuge
+const tools=document.getElementById('tools');
+function btn(cls,html,fn){const b=document.createElement('button');b.className=cls;b.innerHTML=html;b.onclick=fn;tools.appendChild(b);return b}
+const cb=COLORS.map(c=>{const b=btn('t c','',()=>{color=c;erase=false;mark()});b.style.background=c;return b});
+const eb=btn('t','🧽',()=>{erase=true;mark()});
+const sb=btn('t','<i class="dot" style="width:14px;height:14px"></i>',()=>{size=14;mark()});
+const lb=btn('t','<i class="dot" style="width:36px;height:36px"></i>',()=>{size=40;mark()});
+const pb=btn('t','🖨️',doPrint);
+const xb=btn('t','🗑️',()=>{});xb.id='clear';
+function mark(){
+ cb.forEach((b,i)=>b.classList.toggle('on',!erase&&COLORS[i]===color));
+ eb.classList.toggle('on',erase);
+ sb.classList.toggle('on',size===14);lb.classList.toggle('on',size===40);
+}
+size=40;mark();
+
+// Gedrückt halten zum Löschen
+let hold;
+xb.onpointerdown=()=>{xb.classList.add('hold');hold=setTimeout(()=>{pc.fillStyle='#fff';pc.fillRect(0,0,S,S);xb.classList.remove('hold')},1200)};
+['pointerup','pointerleave','pointercancel'].forEach(e=>xb.addEventListener(e,()=>{clearTimeout(hold);xb.classList.remove('hold')}));
+
+// Zeichnen
+let last=null;
+function pos(e){const r=p.getBoundingClientRect();return[(e.clientX-r.left)*S/r.width,(e.clientY-r.top)*S/r.height]}
+function seg(a,b){
+ pc.strokeStyle=erase?'#fff':color;pc.lineWidth=erase?size*2:size;
+ pc.lineCap=pc.lineJoin='round';
+ pc.beginPath();pc.moveTo(a[0],a[1]);pc.lineTo(b[0],b[1]);pc.stroke();
+}
+const box=document.getElementById('box');
+box.addEventListener('pointerdown',e=>{e.preventDefault();box.setPointerCapture(e.pointerId);last=pos(e);seg(last,[last[0]+.01,last[1]])});
+box.addEventListener('pointermove',e=>{if(!last)return;const n=pos(e);seg(last,n);last=n});
+['pointerup','pointercancel'].forEach(t=>box.addEventListener(t,()=>{last=null}));
+document.addEventListener('gesturestart',e=>e.preventDefault());
+document.addEventListener('contextmenu',e=>e.preventDefault());
+
+// Ausmalbilder (Koordinaten 0–100)
+const ci=(c,x,y,r)=>{c.beginPath();c.arc(x,y,r,0,7);c.stroke()};
+const el=(c,x,y,rx,ry)=>{c.beginPath();c.ellipse(x,y,rx,ry,0,0,7);c.stroke()};
+const pl=(c,pts)=>{c.beginPath();pts.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));c.closePath();c.stroke()};
+const MOTIFS=[
+ {e:'☀️',f:c=>{ci(c,50,50,16);for(let i=0;i<12;i++){const a=i*Math.PI/6,P=(r,d)=>[50+r*Math.cos(a+d),50+r*Math.sin(a+d)];pl(c,[P(21,-.2),P(21,.2),P(38,0)])}}},
+ {e:'🏠',f:c=>{pl(c,[[20,48],[80,48],[80,88],[20,88]]);pl(c,[[14,48],[50,14],[86,48]]);pl(c,[[43,62],[57,62],[57,88],[43,88]]);pl(c,[[25,56],[37,56],[37,68],[25,68]]);pl(c,[[63,56],[75,56],[75,68],[63,68]]);pl(c,[[68,32],[68,20],[78,20],[78,38]])}},
+ {e:'🐟',f:c=>{el(c,45,50,30,20);pl(c,[[72,50],[94,30],[94,70]]);ci(c,32,44,3.5);pl(c,[[40,32],[52,16],[60,34]]);pl(c,[[40,68],[50,82],[58,66]])}},
+ {e:'🌸',f:c=>{for(let i=0;i<6;i++){const a=i*Math.PI/3;ci(c,50+17*Math.cos(a),38+17*Math.sin(a),8.5)}ci(c,50,38,8);pl(c,[[48,58],[52,58],[52,92],[48,92]]);el(c,66,76,13,6);el(c,34,70,13,6)}},
+ {e:'❤️',f:c=>{c.beginPath();c.moveTo(50,86);c.bezierCurveTo(8,55,14,12,50,34);c.bezierCurveTo(86,12,92,55,50,86);c.closePath();c.stroke()}},
+ {e:'📄',f:null}
+];
+const ms=document.getElementById('motifs');
+MOTIFS.forEach((m,i)=>{
+ const b=document.createElement('button');b.className='m';b.textContent=m.e;
+ b.onclick=()=>{
+  pc.fillStyle='#fff';pc.fillRect(0,0,S,S);
+  oc.clearRect(0,0,S,S);
+  if(m.f){oc.setTransform(10,0,0,10,0,0);oc.lineWidth=1;oc.strokeStyle='#222';oc.lineJoin=oc.lineCap='round';m.f(oc);oc.setTransform(1,0,0,1,0,0)}
+  [...ms.children].forEach(x=>x.classList.remove('on'));b.classList.add('on');
+ };
+ ms.appendChild(b);
+});
+ms.children[1].click();
+
+// Drucken
+function doPrint(){
+ const t=document.createElement('canvas');t.width=t.height=S;const x=t.getContext('2d');
+ x.drawImage(p,0,0);x.drawImage(o,0,0);
+ const img=document.getElementById('pimg');
+ img.src=t.toDataURL('image/png');
+ setTimeout(()=>window.print(),200);
+}
+</script>
+</body>
+</html>
